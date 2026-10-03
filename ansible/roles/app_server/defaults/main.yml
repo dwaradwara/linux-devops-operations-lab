@@ -1,0 +1,8 @@
+---
+app_name: devops-demo-api
+app_directory: /opt/devops-lab/app
+app_image: devops-demo-api:latest
+app_container_name: devops-demo-api
+app_port: 8000
+nginx_listen_port: 80
+nginx_proxy_read_timeout: 30s

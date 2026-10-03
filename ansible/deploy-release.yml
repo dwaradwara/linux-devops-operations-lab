@@ -1,0 +1,34 @@
+---
+- name: Deploy application release
+  hosts: app
+  become: true
+
+  vars:
+    release_image: devops-demo-api:v1
+
+  tasks:
+    - name: Deploy requested application release
+      community.docker.docker_container:
+        name: devops-demo-api
+        image: "{{ release_image }}"
+        state: started
+        recreate: true
+        restart_policy: unless-stopped
+        published_ports:
+          - "127.0.0.1:8000:8000"
+        labels:
+          devops.lab.release: "{{ release_image }}"
+
+    - name: Wait for application health after deployment
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8000/health
+        status_code: 200
+        return_content: true
+      register: deployment_health
+      retries: 3
+      delay: 2
+      until: deployment_health.status == 200
+
+    - name: Show deployed release
+      ansible.builtin.debug:
+        msg: "Successfully deployed {{ release_image }}"

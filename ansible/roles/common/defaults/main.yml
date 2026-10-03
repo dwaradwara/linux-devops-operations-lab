@@ -1,0 +1,13 @@
+---
+common_packages:
+  - curl
+  - git
+  - htop
+  - jq
+  - unzip
+  - vim
+  - net-tools
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - rsync

@@ -1,0 +1,35 @@
+---
+- name: Configure Linux server baseline
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - common
+
+- name: Configure application server
+  hosts: app
+  become: true
+
+  roles:
+    - app_server
+
+- name: Configure monitoring server
+  hosts: monitoring
+  become: true
+
+  roles:
+    - monitoring_stack
+
+- name: Configure Zabbix agent on application servers
+  hosts: app
+  become: true
+
+  roles:
+    - zabbix_agent
+
+- name: Configure application log management
+  hosts: app
+  become: true
+
+  roles:
+    - log_management

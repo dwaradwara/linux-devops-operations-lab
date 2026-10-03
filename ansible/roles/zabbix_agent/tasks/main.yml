@@ -1,0 +1,45 @@
+---
+- name: Install Zabbix agent
+  ansible.builtin.apt:
+    name: zabbix-agent
+    state: present
+    update_cache: true
+
+- name: Ensure Zabbix include directory exists
+  ansible.builtin.file:
+    path: /etc/zabbix/zabbix_agentd.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure Zabbix log directory exists
+  ansible.builtin.file:
+    path: /var/log/zabbix
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: "0755"
+
+- name: Ensure Zabbix runtime directory exists
+  ansible.builtin.file:
+    path: /run/zabbix
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: "0755"
+
+- name: Deploy Zabbix agent configuration
+  ansible.builtin.template:
+    src: zabbix_agentd.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart zabbix agent
+
+- name: Ensure Zabbix agent is enabled and running
+  ansible.builtin.service:
+    name: zabbix-agent
+    state: started
+    enabled: true

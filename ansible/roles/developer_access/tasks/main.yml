@@ -1,0 +1,65 @@
+---
+- name: Manage developer access - provision
+  when: developer_access_state == "present"
+  block:
+
+    - name: Validate developer SSH key
+      ansible.builtin.assert:
+        that:
+          - developer_ssh_public_key | length > 0
+        fail_msg: "Developer SSH public key must be provided."
+
+    - name: Create developer account
+      ansible.builtin.user:
+        name: "{{ developer_username }}"
+        state: present
+        shell: /bin/bash
+        create_home: true
+        groups: "{{ developer_groups | join(',') }}"
+        append: true
+
+    - name: Create developer SSH directory
+      ansible.builtin.file:
+        path: "/home/{{ developer_username }}/.ssh"
+        state: directory
+        owner: "{{ developer_username }}"
+        group: "{{ developer_username }}"
+        mode: "0700"
+
+    - name: Install developer authorized SSH key
+      ansible.builtin.copy:
+        content: "{{ developer_ssh_public_key }}\n"
+        dest: "/home/{{ developer_username }}/.ssh/authorized_keys"
+        owner: "{{ developer_username }}"
+        group: "{{ developer_username }}"
+        mode: "0600"
+
+- name: Manage developer access - revoke
+  when: developer_access_state == "absent"
+  block:
+
+    - name: Check whether developer account exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ developer_username }}"
+        fail_key: false
+
+    - name: Terminate active developer login sessions
+      ansible.builtin.command:
+        cmd: "loginctl terminate-user {{ developer_username }}"
+      failed_when: false
+      changed_when: false
+      when: developer_username in ansible_facts.getent_passwd
+
+    - name: Terminate remaining developer processes
+      ansible.builtin.command:
+        cmd: "pkill -TERM -u {{ developer_username }}"
+      failed_when: false
+      changed_when: false
+      when: developer_username in ansible_facts.getent_passwd
+
+    - name: Remove developer account and home directory
+      ansible.builtin.user:
+        name: "{{ developer_username }}"
+        state: absent
+        remove: true

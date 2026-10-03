@@ -1,0 +1,85 @@
+[WARNING]: Ansible is being run in a world writable directory (/mnt/d/linux-devops-operations-lab/ansible), ignoring it as an ansible.cfg source. For more information see https://docs.ansible.com/ansible/devel/reference_appendices/config.html#cfg-in-world-writable-dir
+
+PLAY [Configure Linux server baseline] *****************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [devops-app-01]
+ok: [devops-monitor-01]
+
+TASK [common : Update apt package cache] ***************************************
+ok: [devops-monitor-01]
+ok: [devops-app-01]
+
+TASK [common : Install common administration packages] *************************
+ok: [devops-app-01]
+ok: [devops-monitor-01]
+
+TASK [common : Ensure operations group exists] *********************************
+ok: [devops-app-01]
+ok: [devops-monitor-01]
+
+TASK [common : Add devops user to operations group] ****************************
+ok: [devops-app-01]
+ok: [devops-monitor-01]
+
+TASK [common : Create lab operations directory] ********************************
+ok: [devops-app-01]
+ok: [devops-monitor-01]
+
+TASK [common : Create environment identification file] *************************
+ok: [devops-app-01]
+ok: [devops-monitor-01]
+
+PLAY [Configure application server] ********************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [devops-app-01]
+
+TASK [app_server : Install Docker, Nginx and Python Docker SDK] ****************
+ok: [devops-app-01]
+
+TASK [app_server : Ensure Docker service is enabled and running] ***************
+ok: [devops-app-01]
+
+TASK [app_server : Ensure Nginx service is enabled and running] ****************
+ok: [devops-app-01]
+
+TASK [app_server : Add devops user to docker group] ****************************
+ok: [devops-app-01]
+
+TASK [app_server : Create application directory] *******************************
+ok: [devops-app-01]
+
+TASK [app_server : Copy application source files] ******************************
+ok: [devops-app-01]
+
+TASK [app_server : Build application Docker image] *****************************
+ok: [devops-app-01]
+
+TASK [app_server : Run application container] **********************************
+ok: [devops-app-01]
+
+TASK [app_server : Deploy Nginx reverse proxy configuration] *******************
+changed: [devops-app-01]
+
+TASK [app_server : Enable DevOps demo Nginx site] ******************************
+ok: [devops-app-01]
+
+TASK [app_server : Disable default Nginx site] *********************************
+ok: [devops-app-01]
+
+TASK [app_server : Flush handlers before validation] ***************************
+
+RUNNING HANDLER [app_server : Validate nginx configuration] ********************
+[ERROR]: Task failed: Module failed: non-zero return code
+Origin: /mnt/d/linux-devops-operations-lab/ansible/roles/app_server/handlers/main.yml:2:3
+
+1 ---
+2 - name: Validate nginx configuration
+    ^ column 3
+
+fatal: [devops-app-01]: FAILED! => {"changed": false, "cmd": ["nginx", "-t"], "delta": "0:00:00.051395", "end": "2026-10-03 04:21:01.429871", "msg": "non-zero return code", "rc": 1, "start": "2026-10-03 04:21:01.378476", "stderr": "nginx: [emerg] host not found in \"invalid_port\" of the \"listen\" directive in /etc/nginx/sites-enabled/devops-demo.conf:2\nnginx: configuration file /etc/nginx/nginx.conf test failed", "stderr_lines": ["nginx: [emerg] host not found in \"invalid_port\" of the \"listen\" directive in /etc/nginx/sites-enabled/devops-demo.conf:2", "nginx: configuration file /etc/nginx/nginx.conf test failed"], "stdout": "", "stdout_lines": []}
+
+PLAY RECAP *********************************************************************
+devops-app-01              : ok=19   changed=1    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+devops-monitor-01          : ok=7    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0

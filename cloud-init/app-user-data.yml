@@ -1,0 +1,20 @@
+#cloud-config
+hostname: devops-app-01
+manage_etc_hosts: true
+
+users:
+  - name: devops
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - YOUR_SSH_PUBLIC_KEY_HERE
+
+ssh_pwauth: false
+disable_root: true
+
+package_update: false
+
+runcmd:
+  - systemctl enable ssh
+  - systemctl restart ssh

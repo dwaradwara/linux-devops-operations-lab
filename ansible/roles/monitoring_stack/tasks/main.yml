@@ -1,0 +1,62 @@
+---
+- name: Install Docker and Docker Compose
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+      - python3-docker
+    state: present
+    update_cache: true
+
+- name: Ensure Docker is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Create monitoring directory
+  ansible.builtin.file:
+    path: "{{ monitoring_directory }}"
+    state: directory
+    owner: devops
+    group: operations
+    mode: "0755"
+
+- name: Deploy monitoring Docker Compose configuration
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_directory }}/docker-compose.yml"
+    owner: devops
+    group: operations
+    mode: "0640"
+
+- name: Start monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_directory }}"
+    state: present
+
+- name: Wait for Zabbix web interface
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ zabbix_web_port }}"
+    status_code:
+      - 200
+      - 302
+    timeout: 5
+  register: zabbix_web_check
+  retries: 20
+  delay: 5
+  until: zabbix_web_check.status in [200, 302]
+
+- name: Wait for Grafana interface
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ grafana_port }}/api/health"
+    status_code: 200
+  register: grafana_health
+  retries: 20
+  delay: 5
+  until: grafana_health.status == 200
+- name: Validate monitoring database password
+  ansible.builtin.assert:
+    that:
+      - zabbix_db_password | length >= 12
+    fail_msg: "Set ZABBIX_DB_PASSWORD before deploying the monitoring stack."

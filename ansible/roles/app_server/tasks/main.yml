@@ -1,0 +1,95 @@
+---
+- name: Install Docker, Nginx and Python Docker SDK
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - nginx
+      - python3-docker
+    state: present
+    update_cache: true
+
+- name: Ensure Docker service is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Ensure Nginx service is enabled and running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Add devops user to docker group
+  ansible.builtin.user:
+    name: devops
+    groups: docker
+    append: true
+
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ app_directory }}"
+    state: directory
+    owner: devops
+    group: operations
+    mode: "0755"
+
+- name: Copy application source files
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../app/"
+    dest: "{{ app_directory }}/"
+    owner: devops
+    group: operations
+    mode: preserve
+
+- name: Build application Docker image
+  community.docker.docker_image:
+    name: "{{ app_image }}"
+    source: build
+    build:
+      path: "{{ app_directory }}"
+
+- name: Run application container
+  community.docker.docker_container:
+    name: "{{ app_container_name }}"
+    image: "{{ app_image }}"
+    state: started
+    restart_policy: unless-stopped
+    published_ports:
+      - "127.0.0.1:{{ app_port }}:8000"
+
+- name: Deploy Nginx reverse proxy configuration
+  ansible.builtin.template:
+    src: devops-demo.conf.j2
+    dest: /etc/nginx/sites-available/devops-demo.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Enable DevOps demo Nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/devops-demo.conf
+    dest: /etc/nginx/sites-enabled/devops-demo.conf
+    state: link
+  notify: Reload nginx
+
+- name: Disable default Nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+
+- name: Flush handlers before validation
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify application health through Nginx
+  ansible.builtin.uri:
+    url: http://127.0.0.1/health
+    method: GET
+    status_code: 200
+  register: app_health
+
+- name: Show application health
+  ansible.builtin.debug:
+    var: app_health.json

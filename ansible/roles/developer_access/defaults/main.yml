@@ -1,0 +1,6 @@
+---
+developer_username: appdev
+developer_access_state: present
+developer_groups:
+  - operations
+developer_ssh_public_key: ""
