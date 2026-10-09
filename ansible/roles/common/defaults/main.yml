@@ -11,3 +11,4 @@ common_packages:
   - gnupg
   - lsb-release
   - rsync
+  - snmp

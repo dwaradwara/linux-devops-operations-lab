@@ -46,6 +46,8 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
+    environment:
+      GF_PLUGINS_PREINSTALL: alexanderzobnin-zabbix-app
     ports:
       - "{{ grafana_port }}:3000"
     volumes:

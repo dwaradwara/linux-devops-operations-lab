@@ -2,7 +2,9 @@ name: Ansible Validation
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "feature/**"
   pull_request:
     branches: [main]
 
@@ -22,7 +24,7 @@ jobs:
       - name: Install Ansible
         run: |
           python -m pip install --upgrade pip
-          pip install ansible
+          pip install ansible pyyaml
 
       - name: Install required Ansible collection
         run: |
@@ -32,6 +34,7 @@ jobs:
         working-directory: ansible
         env:
           ZABBIX_DB_PASSWORD: ci-placeholder-password
+          SNMP_COMMUNITY: ci-placeholder-community
         run: |
           ansible-playbook -i inventory.example.ini site.yml --syntax-check
 
@@ -39,3 +42,23 @@ jobs:
         working-directory: ansible
         run: |
           ansible-playbook -i inventory.example.ini deploy-release.yml --syntax-check
+
+      - name: Validate Zabbix template YAML
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          paths = sorted(Path("monitoring/zabbix/templates").glob("*.yaml"))
+          if not paths:
+              raise SystemExit("No Zabbix templates found")
+
+          for path in paths:
+              data = yaml.safe_load(path.read_text())
+              export = data.get("zabbix_export", {})
+              if export.get("version") != "7.0":
+                  raise SystemExit(f"{path}: expected Zabbix export version 7.0")
+              if not export.get("templates"):
+                  raise SystemExit(f"{path}: no templates defined")
+              print(f"validated {path}")
+          PY

@@ -33,3 +33,10 @@
 
   roles:
     - log_management
+
+- name: Configure isolated SNMP monitoring target
+  hosts: snmp_targets
+  become: true
+
+  roles:
+    - snmp_target
