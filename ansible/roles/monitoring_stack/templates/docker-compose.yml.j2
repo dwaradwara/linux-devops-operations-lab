@@ -47,6 +47,7 @@ services:
     container_name: grafana
     restart: unless-stopped
     environment:
+      # The Zabbix data-source plugin is required for the infrastructure dashboard.
       GF_PLUGINS_PREINSTALL: alexanderzobnin-zabbix-app
     ports:
       - "{{ grafana_port }}:3000"
