@@ -1,0 +1,38 @@
+---
+- name: Validate SNMP community
+  ansible.builtin.assert:
+    that:
+      - snmp_community | length >= 12
+      - snmp_community != "public"
+    fail_msg: "Set SNMP_COMMUNITY to a non-default lab-only value before applying the SNMP target role."
+
+- name: Install SNMP daemon and client tools
+  ansible.builtin.apt:
+    name:
+      - snmpd
+      - snmp
+    state: present
+    update_cache: true
+
+- name: Deploy restricted SNMP daemon configuration
+  ansible.builtin.template:
+    src: snmpd.conf.j2
+    dest: /etc/snmp/snmpd.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart snmpd
+
+- name: Ensure SNMP daemon is enabled and running
+  ansible.builtin.service:
+    name: snmpd
+    state: started
+    enabled: true
+
+- name: Verify SNMP daemon is listening on UDP 161
+  ansible.builtin.shell: |
+    set -o pipefail
+    ss -lunp | grep -E '[:.]161\b'
+  args:
+    executable: /bin/bash
+  changed_when: false

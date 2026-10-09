@@ -1,0 +1,11 @@
+# Managed by Ansible for linux-devops-operations-lab.
+# SNMPv2c is used only inside the isolated lab network.
+
+agentAddress {{ snmp_agent_address }}
+
+sysLocation {{ snmp_sys_location }}
+sysContact {{ snmp_sys_contact }}
+sysServices 72
+
+# Restrict read-only SNMP access to the monitoring server.
+rocommunity {{ snmp_community }} {{ snmp_allowed_manager_ip }}

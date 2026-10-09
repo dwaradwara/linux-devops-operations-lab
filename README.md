@@ -1,46 +1,55 @@
-# Linux DevOps Operations & Incident Response Lab
+# Linux DevOps Operations & Observability Lab
 
-Production-style Linux/DevOps lab built to demonstrate hands-on configuration management, containerized application deployment, monitoring, incident response, access administration, log management, and rollback workflows.
+Production-style Linux operations lab focused on configuration management, application delivery, infrastructure monitoring, incident response, access administration, log management, rollback, and observability.
 
 > All failures and incidents in this repository were deliberately reproduced in an isolated lab. They are not production incidents or customer data.
 
 ## 30-second overview
 
-- **2 Ubuntu VMs** on KVM/libvirt: application and monitoring nodes
-- **Ansible** roles for baseline configuration, application deployment, developer access, Zabbix agent configuration, monitoring stack, and log rotation
+- **3 Ubuntu VMs** on KVM/libvirt: application, monitoring, and isolated SNMP target nodes
+- **Ansible** roles for Linux baseline configuration, application deployment, monitoring, developer access, log rotation, and SNMP
 - **Docker + Nginx + FastAPI** application path
 - **Zabbix + Grafana + PostgreSQL** monitoring stack
-- **5 documented incidents** with investigation, root cause, resolution, and evidence
+- **Custom Zabbix low-level discovery (LLD)** with filesystem item and trigger prototypes
+- **SNMPv2 monitoring** with a dedicated Linux target, availability alerting, and network discovery
+- **Grafana operations dashboard** backed by the Zabbix API
+- **5 documented application/operations incidents** plus observability failure-and-recovery drills
 - **Deployment health validation + rollback** using immutable image tags
-- **GitHub Actions** syntax validation for the Ansible playbooks
+- **GitHub Actions** validation for Ansible and exported Zabbix templates
 
 ## Architecture
 
 ```text
-                    WSL2 Ubuntu
-                 Ansible Control Node
-                         |
-                         | SSH
-              +----------+-----------+
-              |                      |
-              v                      v
-      devops-app-01          devops-monitor-01
-      Ubuntu 22.04           Ubuntu 22.04
-      192.168.122.221        192.168.122.215
-              |                      |
-              |                      +-- Zabbix Server
-              |                      +-- Zabbix Web
-              |                      +-- PostgreSQL
-              |                      +-- Grafana
+                         WSL2 Ubuntu
+                      Ansible Control Node
+                              |
+                              | SSH
+              +---------------+----------------+
+              |                                |
+              v                                v
+      devops-app-01                    devops-monitor-01
+      Ubuntu 22.04                     Ubuntu 22.04
+              |                                |
+              |                                +-- PostgreSQL
+              |                                +-- Zabbix Server
+              |                                +-- Zabbix Web
+              |                                +-- Grafana
               |
               +-- Nginx :80
               +-- Docker
               +-- FastAPI
               +-- Zabbix Agent
               +-- logrotate
+
+                              |
+                              | SNMPv2 / UDP 161
+                              v
+                       devops-snmp-01
+                       Ubuntu 22.04
+                       snmpd target
 ```
 
-Virtual machines are hosted with **KVM/libvirt**. The control node connects over SSH and applies the desired state with Ansible.
+Virtual machines are hosted with **KVM/libvirt**. Ansible manages the desired state over SSH. Zabbix monitors the application node with an agent and the dedicated SNMP node over UDP/161.
 
 ## Technology stack
 
@@ -50,10 +59,61 @@ Virtual machines are hosted with **KVM/libvirt**. The control node connects over
 | Configuration management | Ansible roles, variables, handlers |
 | Application | FastAPI, Python |
 | Runtime / proxy | Docker, Nginx |
-| Monitoring | Zabbix Server, Zabbix Agent, Grafana |
+| Monitoring | Zabbix Server, Zabbix Agent, SNMPv2, Grafana |
+| Observability | Zabbix LLD, item prototypes, trigger prototypes, discovery actions, Grafana dashboards |
 | Data | PostgreSQL |
-| Operations | SSH, systemd, logrotate, journalctl |
+| Operations | SSH, systemd, logrotate, journalctl, SNMP CLI |
 | Delivery validation | Ansible post-deployment health checks, GitHub Actions |
+
+## Observability expansion
+
+The monitoring environment was extended beyond basic host availability to demonstrate reusable monitoring design and alert-quality work.
+
+### Custom filesystem capacity template
+
+The repository includes an exportable Zabbix 7.0 template:
+
+[`monitoring/zabbix/templates/template-linux-filesystem-capacity.yaml`](monitoring/zabbix/templates/template-linux-filesystem-capacity.yaml)
+
+It contains:
+
+- filesystem low-level discovery using `vfs.fs.discovery`
+- a `vfs.fs.size[{#FSNAME},pused]` item prototype
+- a reusable `{$FS.PUSED.WARN}` threshold macro
+- a sustained 10-minute trigger prototype to reduce short-spike noise
+- component, mount, and capacity tags
+
+### SNMP monitoring
+
+A third VM, `devops-snmp-01`, is configured through the `snmp_target` Ansible role.
+
+The SNMP template collects:
+
+- system name
+- system uptime
+- interface count
+- no-data detection for lost SNMP telemetry
+
+The community string is supplied through the `SNMP_COMMUNITY` environment variable and is not stored in the repository.
+
+### Network discovery and onboarding
+
+Zabbix network discovery was configured for the lab subnet to locate the SNMP target. A discovery action then associates the discovered device with the `Linux servers` host group and the custom SNMP template.
+
+### Grafana + Zabbix
+
+Grafana reads operational data through the Zabbix API using a dedicated API token rather than a stored administrator password.
+
+The dashboard combines:
+
+- root filesystem utilization
+- SNMP system uptime
+- SNMP interface count
+- recent infrastructure problems
+
+![Linux Infrastructure Operations Grafana dashboard](docs/evidence/observability/07-grafana-infrastructure-dashboard.png)
+
+Full implementation notes and evidence: [Observability expansion](docs/observability-expansion.md).
 
 ## Incident portfolio
 
@@ -83,8 +143,6 @@ devops-demo-api:v2-broken
 
 The container started, but the application listened on **port 9000** while the Docker/Nginx path expected **port 8000**.
 
-Observed behavior:
-
 ```text
 container running
       |
@@ -97,103 +155,71 @@ Nginx / deployment path expects :8000
       +--> Zabbix HIGH alert
 ```
 
-Investigation used:
+Investigation used `docker ps`, `docker inspect`, `docker logs`, and `curl`.
 
-```bash
-docker ps
-docker inspect
-docker logs
-curl
-```
-
-The release was rolled back with the Ansible deployment playbook to `devops-demo-api:v1`. The health endpoint returned **HTTP 200** and Zabbix automatically recorded recovery within **2 minutes**.
+The release was rolled back with the Ansible deployment playbook to `devops-demo-api:v1`. The health endpoint returned HTTP 200 and Zabbix recorded recovery.
 
 ## Ansible roles
 
 ### `common`
-Provides the Linux baseline across managed hosts:
-
-- common administration packages
-- operations group and user membership
-- lab directories
-- environment identification
+Provides the Linux baseline across managed hosts: administration packages, operations group membership, lab directories, and environment identification.
 
 ### `app_server`
-Configures the application node:
-
-- Docker and Nginx installation
-- FastAPI source deployment and image build
-- application container lifecycle
-- Nginx reverse proxy configuration
-- `nginx -t` validation before reload
-- application health validation
+Configures Docker, Nginx, FastAPI deployment, Nginx validation, container lifecycle, and application health checks.
 
 ### `developer_access`
-Automates developer access:
-
-- Linux account provisioning
-- SSH directory and authorized key management
-- access revocation
-- termination of active user sessions/processes
-- home-directory cleanup
+Automates account provisioning, SSH authorized keys, access revocation, process termination, and home-directory cleanup.
 
 ### `monitoring_stack`
-Deploys:
+Deploys PostgreSQL, Zabbix Server, Zabbix Web, and Grafana.
 
-- PostgreSQL
-- Zabbix Server
-- Zabbix Web
-- Grafana
-
-The database password is supplied with the `ZABBIX_DB_PASSWORD` environment variable and is not committed to the repository.
+The database password is supplied with the `ZABBIX_DB_PASSWORD` environment variable and is not committed.
 
 ### `zabbix_agent`
-Configures application-host monitoring:
+Configures agent-based monitoring on the application host.
 
-- Zabbix agent installation
-- server and active-server settings
-- runtime/log directories
-- service management and restart handler
+### `snmp_target`
+Configures the isolated SNMP target with `snmpd`, restricted read-only access, service management, and UDP/161 verification.
 
 ### `log_management`
-Controls application log growth:
+Controls application log growth with size-based rotation, retention, compression, and `copytruncate`.
 
-- 50 MB rotation threshold
-- five retained rotations
-- compression
-- delayed compression
-- `copytruncate`
-
-## Application and monitoring flow
+## Monitoring flows
 
 ```text
-Client
-  |
-  v
-Nginx :80
-  |
-  v
-Docker container :8000
-  |
-  v
-FastAPI /health
-  |
-  v
-Zabbix web scenario
-  |
-  +--> problem event
-  +--> recovery event
+Application path
+Client -> Nginx :80 -> Docker :8000 -> FastAPI /health
+                                      |
+                                      +-> Zabbix web scenario
+                                      +-> problem / recovery events
+
+Host metrics
+devops-app-01 -> Zabbix Agent -> Zabbix Server
+
+SNMP telemetry
+devops-snmp-01 :161/udp -> Zabbix Server -> Grafana
 ```
 
-Linux host metrics are collected separately through the Zabbix agent.
+## Evidence
+
+The observability extension includes recruiter-facing evidence for:
+
+- filesystem discovery and prototypes
+- filesystem alert and recovery
+- live SNMP data
+- SNMP outage detection
+- SNMP recovery
+- network discovery
+- final Grafana infrastructure dashboard
+
+See [`docs/evidence/observability/`](docs/evidence/observability/).
 
 ## Repository structure
 
 ```text
 linux-devops-operations-lab/
-├── .github/
-│   └── workflows/
-│       └── ansible-validation.yml
+├── .github/workflows/
+│   └── ansible-validation.yml
 ├── ansible/
 │   ├── roles/
 │   │   ├── common/
@@ -201,6 +227,7 @@ linux-devops-operations-lab/
 │   │   ├── developer_access/
 │   │   ├── monitoring_stack/
 │   │   ├── zabbix_agent/
+│   │   ├── snmp_target/
 │   │   └── log_management/
 │   ├── inventory.example.ini
 │   ├── site.yml
@@ -208,12 +235,18 @@ linux-devops-operations-lab/
 │   └── deploy-release.yml
 ├── app/
 ├── cloud-init/
+├── docs/
+│   ├── observability-expansion.md
+│   └── evidence/observability/
 ├── incidents/
 │   ├── INC001-application-outage/
 │   ├── INC002-ansible-nginx-deployment-failure/
 │   ├── INC003-developer-ssh-access-failure/
 │   ├── INC004-log-growth-disk-pressure/
 │   └── INC005-production-deployment-regression/
+├── monitoring/zabbix/templates/
+│   ├── template-linux-filesystem-capacity.yaml
+│   └── template-snmp-linux-lab.yaml
 ├── .env.example
 ├── .gitignore
 └── README.md
@@ -223,14 +256,12 @@ linux-devops-operations-lab/
 
 ### Prerequisites
 
-The lab assumes:
-
 - Linux/WSL2 control node
 - Ansible
 - KVM/libvirt
-- two reachable Ubuntu VMs
+- three reachable Ubuntu VMs
 - SSH key-based access
-- Docker-capable guest systems
+- Docker-capable monitoring/application guests
 
 Copy the example inventory:
 
@@ -240,13 +271,14 @@ cp ansible/inventory.example.ini ansible/inventory.ini
 
 Update the VM IP addresses and SSH key path for your environment.
 
-Set the monitoring database password locally:
+Set secrets locally:
 
 ```bash
 export ZABBIX_DB_PASSWORD='replace-with-your-local-password'
+export SNMP_COMMUNITY='replace-with-a-non-default-lab-value'
 ```
 
-Do not commit the real password.
+Do not commit the real values.
 
 ### Validate and apply configuration
 
@@ -266,7 +298,7 @@ ansible all -i inventory.ini -m ping
 Validate the application:
 
 ```bash
-curl http://192.168.122.221/health
+curl http://<APP_VM_IP>/health
 ```
 
 Expected:
@@ -290,57 +322,38 @@ The playbook performs a post-deployment health check and fails the deployment wo
 
 Rollback uses the same playbook with the previous known-good image tag.
 
-## Developer access workflow
-
-Provision developer access:
-
-```bash
-ansible-playbook -i inventory.ini developer-access.yml
-```
-
-Revoke access:
-
-```bash
-ansible-playbook -i inventory.ini developer-access.yml \
-  -e developer_access_state=absent
-```
-
-The public-key path used by this playbook is local to the operator and is intentionally not committed.
-
 ## CI validation
 
-GitHub Actions runs Ansible syntax validation on pushes and pull requests.
+GitHub Actions validates:
 
-The CI job does **not** attempt to reproduce the KVM/libvirt environment or execute destructive incident scenarios. Its purpose is to catch playbook/YAML regressions before changes are merged.
+- the main Ansible playbook
+- the release deployment playbook
+- the exported Zabbix 7.0 template YAML files
+
+The CI workflow does not attempt to reproduce KVM/libvirt or destructive incident scenarios.
 
 ## Security
 
-The public repository intentionally excludes:
-
-- private SSH keys
-- local Ansible inventory
-- `.env` files
-- API keys
-- production credentials
-- hard-coded database passwords
-
-Example files use placeholders only.
+The public repository intentionally excludes private SSH keys, local inventory, `.env` files, API tokens, SNMP community secrets, and database passwords. Example files contain placeholders only.
 
 ## What this project demonstrates
 
-- Linux system administration
-- Ansible roles, variables, handlers, and idempotent configuration
-- Docker application deployment
-- Nginx reverse-proxy administration
-- Zabbix monitoring and alerting
-- Grafana deployment
+- Linux administration and troubleshooting
 - KVM/libvirt virtualization
+- Ansible configuration management
+- Docker and Nginx operations
+- Zabbix agent monitoring
+- custom Zabbix templates
+- low-level discovery and prototypes
+- alert-threshold tuning
+- SNMP monitoring and service-loss detection
+- Zabbix network discovery and discovery actions
+- Grafana dashboarding through the Zabbix API
+- incident investigation and recovery validation
 - Linux user and SSH access management
-- application health checks
 - log and disk troubleshooting
-- incident investigation and root-cause analysis
-- release rollback and recovery validation
+- deployment health checks and rollback
 
 ## Portfolio scope
 
-This repository is a **controlled technical lab** built to demonstrate hands-on Linux and DevOps operations. It does not claim production ownership, customer incidents, or high-availability production experience.
+This repository is a **controlled technical lab** built to demonstrate hands-on Linux, monitoring, and DevOps operations. It does not claim production ownership, customer incidents, or high-availability production experience.

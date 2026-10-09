@@ -1,0 +1,63 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 2c17c9ac4f4c4a4ab3186c85325d2ce2
+      name: Templates/Custom
+  templates:
+    - uuid: 6f123d71f0e84f0f98acb892af6e59e8
+      template: 'SNMP Linux Node - Lab'
+      name: 'SNMP Linux Node - Lab'
+      description: |
+        Small SNMPv2 lab template for a Linux node. Collects identity,
+        uptime, and interface-count data and detects loss of SNMP telemetry.
+      groups:
+        - name: Templates/Custom
+      items:
+        - uuid: 824e0bc22e9b4f92a55f2f447da8cbee
+          name: 'SNMP: System name'
+          type: SNMP_AGENT
+          snmp_oid: 'get[1.3.6.1.2.1.1.5.0]'
+          key: snmp.lab.sysname
+          delay: 5m
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          tags:
+            - tag: component
+              value: snmp
+        - uuid: aa258d729f3f4ca3b55d09c2dc502ab8
+          name: 'SNMP: System uptime'
+          type: SNMP_AGENT
+          snmp_oid: 'get[1.3.6.1.2.1.1.3.0]'
+          key: snmp.lab.uptime
+          delay: 1m
+          history: 7d
+          trends: 30d
+          units: uptime
+          tags:
+            - tag: component
+              value: snmp
+          triggers:
+            - uuid: 2e9f08a15a3d4b199660af18cab72d3d
+              expression: 'nodata(/SNMP Linux Node - Lab/snmp.lab.uptime,5m)=1'
+              name: 'SNMP telemetry unavailable for 5 minutes'
+              priority: HIGH
+              description: |
+                Sustained no-data trigger. It avoids alerting on a single missed
+                poll and represents loss of visibility to the SNMP target.
+              tags:
+                - tag: scope
+                  value: availability
+                - tag: component
+                  value: snmp
+        - uuid: 705f443de4f14cccae49df1afdc28892
+          name: 'SNMP: Interface count'
+          type: SNMP_AGENT
+          snmp_oid: 'get[1.3.6.1.2.1.2.1.0]'
+          key: snmp.lab.ifcount
+          delay: 5m
+          history: 7d
+          trends: 30d
+          tags:
+            - tag: component
+              value: network

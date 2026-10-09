@@ -1,0 +1,6 @@
+---
+snmp_community: "{{ lookup('env', 'SNMP_COMMUNITY') }}"
+snmp_allowed_manager_ip: 192.168.122.215
+snmp_agent_address: "udp:161"
+snmp_sys_location: "Linux DevOps Operations Lab"
+snmp_sys_contact: "lab-operations"

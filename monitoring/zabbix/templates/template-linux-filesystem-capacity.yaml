@@ -1,0 +1,57 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 2c17c9ac4f4c4a4ab3186c85325d2ce2
+      name: Templates/Custom
+  templates:
+    - uuid: 94f4ef28db0c49d4bb97d20bf92f1657
+      template: 'Linux Filesystem Capacity - Lab'
+      name: 'Linux Filesystem Capacity - Lab'
+      description: |
+        Custom lab template demonstrating low-level filesystem discovery,
+        item prototypes, sustained-threshold alerting, and reusable macros.
+      groups:
+        - name: Templates/Custom
+      discovery_rules:
+        - uuid: 68a5f6dfddfa4f98a8489bdb36ed41ad
+          name: 'Filesystem discovery'
+          key: vfs.fs.discovery
+          delay: 10m
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#FSTYPE}'
+                value: '^(ext2|ext3|ext4|xfs)$'
+                operator: MATCHES_REGEX
+                formulaid: A
+          item_prototypes:
+            - uuid: c0f0d29850b242e7b4051032771169d6
+              name: 'Filesystem {#FSNAME}: Used space'
+              key: 'vfs.fs.size[{#FSNAME},pused]'
+              delay: 1m
+              history: 7d
+              trends: 30d
+              value_type: FLOAT
+              units: '%'
+              tags:
+                - tag: component
+                  value: filesystem
+                - tag: mount
+                  value: '{#FSNAME}'
+          trigger_prototypes:
+            - uuid: ba30b9004ce64d098c7a5971725b97c2
+              expression: 'min(/Linux Filesystem Capacity - Lab/vfs.fs.size[{#FSNAME},pused],10m)>{$FS.PUSED.WARN}'
+              name: 'Filesystem {#FSNAME}: sustained usage above {$FS.PUSED.WARN}%'
+              priority: WARNING
+              description: |
+                Fires only when filesystem utilization remains above the warning
+                threshold for ten minutes, reducing noise from short spikes.
+              tags:
+                - tag: scope
+                  value: capacity
+                - tag: component
+                  value: filesystem
+      macros:
+        - macro: '{$FS.PUSED.WARN}'
+          value: '85'
+          description: 'Sustained filesystem utilization warning threshold.'
