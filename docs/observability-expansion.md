@@ -167,7 +167,7 @@ Panels:
 - SNMP Interface Count
 - Recent Infrastructure Problems
 
-![Grafana infrastructure dashboard](evidence/observability/07-grafana-infrastructure-dashboard.png)
+![Grafana infrastructure dashboard](evidence/observability/07-grafana-infrastructure-dashboard-cropped.png)
 
 ## 7. Grafana-managed alerting
 
@@ -240,7 +240,7 @@ curl http://<MONITOR_VM_IP>:8080/api_jsonrpc.php
 | `04-zabbix-snmp-outage-alert.png` | sustained SNMP telemetry failure |
 | `05-zabbix-snmp-recovery.png` | automatic recovery after service restoration |
 | `06-zabbix-network-discovery.png` | SNMP target discovered on the lab subnet |
-| `07-grafana-infrastructure-dashboard.png` | final Grafana/Zabbix operations view |
+| `07-grafana-infrastructure-dashboard-cropped.png` | final Grafana/Zabbix operations view |
 | `08-grafana-native-alert-firing.png` | Grafana-managed filesystem alert in firing state |
 | `09-grafana-native-alert-recovery-history.png` | Grafana alert lifecycle showing Normal → Alerting → Normal |
 

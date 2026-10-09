@@ -111,7 +111,7 @@ The dashboard combines:
 - SNMP interface count
 - recent infrastructure problems
 
-![Linux Infrastructure Operations Grafana dashboard](docs/evidence/observability/07-grafana-infrastructure-dashboard.png)
+![Linux Infrastructure Operations Grafana dashboard](docs/evidence/observability/07-grafana-infrastructure-dashboard-cropped.png)
 
 ### Grafana-managed alerting
 
