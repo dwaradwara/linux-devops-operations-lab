@@ -55,9 +55,9 @@ The 10-minute minimum condition is intentional. It demonstrates an alert-quality
 
 During validation, the host-level macro was temporarily lowered to force the warning, then returned to the normal operating threshold after recovery was confirmed.
 
-![Filesystem LLD](evidence/observability/01-zabbix-filesystem-lld.png)
+![Filesystem LLD](evidence/observability/01-zabbix-filesystem-lld-cropped.png)
 
-![Filesystem alert and recovery](evidence/observability/02-zabbix-filesystem-alert-recovery.png)
+![Filesystem alert and recovery](evidence/observability/02-zabbix-filesystem-alert-recovery-cropped.png)
 
 ## 2. Dedicated SNMP target
 
@@ -100,7 +100,7 @@ Collected OIDs:
 
 The uptime item includes a HIGH-severity `nodata(...,5m)` trigger. A single missed poll is therefore not enough to raise the incident; sustained loss of telemetry is required.
 
-![SNMP live data](evidence/observability/03-zabbix-snmp-live-data.png)
+![SNMP live data](evidence/observability/03-zabbix-snmp-live-data-cropped.png)
 
 ## 4. SNMP outage and recovery drill
 
@@ -132,9 +132,9 @@ problem automatically resolves
 
 Evidence:
 
-![SNMP outage alert](evidence/observability/04-zabbix-snmp-outage-alert.png)
+![SNMP outage alert](evidence/observability/04-zabbix-snmp-outage-alert-cropped.png)
 
-![SNMP recovery](evidence/observability/05-zabbix-snmp-recovery.png)
+![SNMP recovery](evidence/observability/05-zabbix-snmp-recovery-cropped.png)
 
 ## 5. Network discovery and onboarding
 
@@ -148,7 +148,7 @@ The discovery workflow verified that `devops-snmp-01` could be found by its SNMP
 - add the device to the `Linux servers` host group
 - link the custom `SNMP Linux Node - Lab` template
 
-![Zabbix network discovery](evidence/observability/06-zabbix-network-discovery.png)
+![Zabbix network discovery](evidence/observability/06-zabbix-network-discovery-cropped.png)
 
 ## 6. Grafana integration
 
@@ -234,12 +234,12 @@ curl http://<MONITOR_VM_IP>:8080/api_jsonrpc.php
 
 | File | Demonstrates |
 |---|---|
-| `01-zabbix-filesystem-lld.png` | custom filesystem discovery/prototype configuration |
-| `02-zabbix-filesystem-alert-recovery.png` | threshold alert and recovery |
-| `03-zabbix-snmp-live-data.png` | SNMP metrics collected in Zabbix |
-| `04-zabbix-snmp-outage-alert.png` | sustained SNMP telemetry failure |
-| `05-zabbix-snmp-recovery.png` | automatic recovery after service restoration |
-| `06-zabbix-network-discovery.png` | SNMP target discovered on the lab subnet |
+| `01-zabbix-filesystem-lld-cropped.png` | custom filesystem discovery/prototype configuration |
+| `02-zabbix-filesystem-alert-recovery-cropped.png` | threshold alert and recovery |
+| `03-zabbix-snmp-live-data-cropped.png` | SNMP metrics collected in Zabbix |
+| `04-zabbix-snmp-outage-alert-cropped.png` | sustained SNMP telemetry failure |
+| `05-zabbix-snmp-recovery-cropped.png` | automatic recovery after service restoration |
+| `06-zabbix-network-discovery-cropped.png` | SNMP target discovered on the lab subnet |
 | `07-grafana-infrastructure-dashboard-cropped.png` | final Grafana/Zabbix operations view |
 | `08-grafana-native-alert-firing.png` | Grafana-managed filesystem alert in firing state |
 | `09-grafana-native-alert-recovery-history.png` | Grafana alert lifecycle showing Normal → Alerting → Normal |
