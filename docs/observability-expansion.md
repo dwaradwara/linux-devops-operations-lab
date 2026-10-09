@@ -13,6 +13,7 @@ The objective was to move the lab from basic service monitoring toward infrastru
 - detect loss of SNMP telemetry and verify automatic recovery
 - discover the SNMP node through Zabbix network discovery
 - visualize Zabbix data in Grafana
+- validate a Grafana-managed alert lifecycle
 - remove monitoring noise that does not represent an actionable condition
 
 ## Topology
@@ -168,7 +169,38 @@ Panels:
 
 ![Grafana infrastructure dashboard](evidence/observability/07-grafana-infrastructure-dashboard.png)
 
-## 7. Alert-noise cleanup
+## 7. Grafana-managed alerting
+
+A Grafana-managed rule named `High Root Filesystem Utilization` was created against the Zabbix-backed `Filesystem /: Used space` metric for `devops-app-01`.
+
+Normal rule configuration:
+
+| Setting | Value |
+|---|---|
+| Evaluation interval | 1 minute |
+| Threshold | above 85% |
+| Pending period | 2 minutes |
+| Keep firing for | 0 seconds |
+
+The alert description is:
+
+`Root filesystem utilization is above 85%`
+
+For safe validation, the filesystem itself was **not** artificially filled. Instead, the rule threshold was temporarily lowered from **85% to 20%** and the pending period from **2m to 0s**. With root filesystem utilization at approximately **28.7%**, Grafana evaluated the condition as true and entered the `Firing` state.
+
+![Grafana native alert firing](evidence/observability/08-grafana-native-alert-firing.png)
+
+Immediately after validation, the operational values were restored to **85%** and **2m**. The next evaluations returned the rule to `Normal`. Grafana's history records the lifecycle:
+
+```text
+Normal -> Alerting -> Normal
+```
+
+![Grafana alert recovery history](evidence/observability/09-grafana-native-alert-recovery-history.png)
+
+The contact point used in this isolated lab has no external integration configured. Notification delivery was intentionally left out of scope; the objective was to demonstrate Grafana-native rule evaluation, alert state transitions, and recovery.
+
+## 8. Alert-noise cleanup
 
 The initial Zabbix configuration included a `Linux by Zabbix agent` template on the containerized `Zabbix server` host even though no corresponding host agent was intended for that object.
 
@@ -209,6 +241,8 @@ curl http://<MONITOR_VM_IP>:8080/api_jsonrpc.php
 | `05-zabbix-snmp-recovery.png` | automatic recovery after service restoration |
 | `06-zabbix-network-discovery.png` | SNMP target discovered on the lab subnet |
 | `07-grafana-infrastructure-dashboard.png` | final Grafana/Zabbix operations view |
+| `08-grafana-native-alert-firing.png` | Grafana-managed filesystem alert in firing state |
+| `09-grafana-native-alert-recovery-history.png` | Grafana alert lifecycle showing Normal → Alerting → Normal |
 
 ## Scope
 

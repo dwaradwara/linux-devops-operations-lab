@@ -12,7 +12,7 @@ Production-style Linux operations lab focused on configuration management, appli
 - **Zabbix + Grafana + PostgreSQL** monitoring stack
 - **Custom Zabbix low-level discovery (LLD)** with filesystem item and trigger prototypes
 - **SNMPv2 monitoring** with a dedicated Linux target, availability alerting, and network discovery
-- **Grafana operations dashboard** backed by the Zabbix API
+- **Grafana operations dashboard + Grafana-managed filesystem alerting** backed by the Zabbix API
 - **5 documented application/operations incidents** plus observability failure-and-recovery drills
 - **Deployment health validation + rollback** using immutable image tags
 - **GitHub Actions** validation for Ansible and exported Zabbix templates
@@ -60,7 +60,7 @@ Virtual machines are hosted with **KVM/libvirt**. Ansible manages the desired st
 | Application | FastAPI, Python |
 | Runtime / proxy | Docker, Nginx |
 | Monitoring | Zabbix Server, Zabbix Agent, SNMPv2, Grafana |
-| Observability | Zabbix LLD, item prototypes, trigger prototypes, discovery actions, Grafana dashboards |
+| Observability | Zabbix LLD, item prototypes, trigger prototypes, discovery actions, Grafana dashboards, Grafana-managed alerting |
 | Data | PostgreSQL |
 | Operations | SSH, systemd, logrotate, journalctl, SNMP CLI |
 | Delivery validation | Ansible post-deployment health checks, GitHub Actions |
@@ -112,6 +112,25 @@ The dashboard combines:
 - recent infrastructure problems
 
 ![Linux Infrastructure Operations Grafana dashboard](docs/evidence/observability/07-grafana-infrastructure-dashboard.png)
+
+### Grafana-managed alerting
+
+A Grafana-managed rule named `High Root Filesystem Utilization` evaluates the Zabbix-backed root filesystem metric for `devops-app-01`.
+
+Normal operating configuration:
+
+- threshold: **above 85%**
+- evaluation interval: **1 minute**
+- pending period: **2 minutes**
+- keep-firing period: **0 seconds**
+
+For controlled validation, the threshold was temporarily lowered to **20%** and the pending period to **0 seconds** while the filesystem was at approximately **28.7%**. This safely forced the rule into `Firing` without filling the disk. The rule was then restored to **85% / 2m**, and Grafana returned it to `Normal`.
+
+![Grafana native alert firing](docs/evidence/observability/08-grafana-native-alert-firing.png)
+
+![Grafana alert recovery history](docs/evidence/observability/09-grafana-native-alert-recovery-history.png)
+
+Notification transport was intentionally left out of scope; this drill validates Grafana rule evaluation, state transition, and recovery.
 
 Full implementation notes and evidence: [Observability expansion](docs/observability-expansion.md).
 
@@ -211,6 +230,7 @@ The observability extension includes recruiter-facing evidence for:
 - SNMP recovery
 - network discovery
 - final Grafana infrastructure dashboard
+- Grafana-native alert firing and recovery history
 
 See [`docs/evidence/observability/`](docs/evidence/observability/).
 
@@ -349,6 +369,7 @@ The public repository intentionally excludes private SSH keys, local inventory, 
 - SNMP monitoring and service-loss detection
 - Zabbix network discovery and discovery actions
 - Grafana dashboarding through the Zabbix API
+- Grafana-managed alert rules and firing/recovery validation
 - incident investigation and recovery validation
 - Linux user and SSH access management
 - log and disk troubleshooting
